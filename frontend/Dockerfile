@@ -7,7 +7,7 @@ RUN npm install -g serve
 
 # Copy package files and install dependencies
 COPY package*.json ./
-RUN npm install --production --legacy-peer-deps
+RUN npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .

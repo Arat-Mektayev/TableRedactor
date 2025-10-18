@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import Table, Column, MetaData, Text, Integer, Float, DateTime, String, select, insert, update, delete
+from sqlalchemy.sql import quoted_name
 from sqlalchemy.exc import NoSuchTableError, IntegrityError, SQLAlchemyError
 from app.models.table import Table as TableModel
 from app.schemas.table import TableCreate, ColumnSchema, RowDataRequest
@@ -18,12 +19,13 @@ TYPE_MAP = {
 
 def get_dynamic_table_object(db: Session, table_name: str) -> Table:
     """Вспомогательная функция: динамически отражает (reflect) таблицу из БД."""
-    metadata = MetaData(bind=db.bind)
+    # SQLAlchemy 2.x: don't bind MetaData; pass engine to autoload_with
+    metadata = MetaData()
     dynamic_table_name = f"data_{table_name.lower()}"
 
     try:
         # Отражаем структуру таблицы, которая уже существует в БД
-        dynamic_table = Table(dynamic_table_name, metadata, autoload_with=db.bind)
+        dynamic_table = Table(quoted_name(dynamic_table_name, True), metadata, autoload_with=db.bind)
         return dynamic_table
     except NoSuchTableError:
         raise ValueError(f"Физическая таблица {dynamic_table_name} не найдена в БД.")
@@ -56,10 +58,11 @@ def create_table_model(db: Session, table_data: TableCreate):
         if sqlalchemy_type is None:
             raise ValueError(f"Неизвестный тип столбца: {col.type}")
 
-        columns_list.append(Column(col.name, sqlalchemy_type, nullable=not col.is_required))
+        columns_list.append(Column(quoted_name(col.name, True), sqlalchemy_type, nullable=not col.is_required))
 
+    dynamic_table_name = f"data_{table_data.name.lower()}"
     dynamic_table = Table(
-        f"data_{table_data.name.lower()}",  # Имя таблицы в БД
+        quoted_name(dynamic_table_name, True),  # Имя таблицы в БД (quoted)
         metadata,
         *columns_list
     )
@@ -113,15 +116,21 @@ def read_rows_data(db: Session, table_name: str) -> List[Dict[str, Any]]:
     dynamic_table = get_dynamic_table_object(db, table_name)
 
     stmt = select(dynamic_table)
-    result = db.execute(stmt).fetchall()
+    # Use mappings() for SQLAlchemy 2.x to get dict-like rows
+    result = db.execute(stmt).mappings().all()
 
     rows_as_dicts = []
     for row in result:
-        row_dict = row._asdict()
+        row_dict = dict(row)
         row_data = {k: v for k, v in row_dict.items() if k not in ['id', 'created_at']}
+        created_at_val = row_dict.get('created_at')
+        try:
+            created_at_str = created_at_val.isoformat() if created_at_val else None
+        except AttributeError:
+            created_at_str = str(created_at_val) if created_at_val is not None else None
         rows_as_dicts.append({
-            'id': row_dict['id'],
-            'created_at': row_dict['created_at'].isoformat() if row_dict['created_at'] else None,
+            'id': row_dict.get('id'),
+            'created_at': created_at_str,
             'data': row_data
         })
 

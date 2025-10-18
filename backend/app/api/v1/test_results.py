@@ -73,8 +73,8 @@ def create_row(table_id: int, row_data: RowDataRequest, db: Session = Depends(ge
         return new_row
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Ошибка сервера при вставке строки.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка сервера при вставке строки: {e}")
 
 
 @router.get("/{table_id}/data", response_model=DynamicTableData)
@@ -91,8 +91,8 @@ def get_table_data(table_id: int, db: Session = Depends(get_db)):
     except ValueError as e:
         # Ошибка, если физическая таблица не существует
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Ошибка сервера при получении данных.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка сервера при получении данных: {e}")
 
     return DynamicTableData(
         table_schema=db_table_meta,
@@ -115,8 +115,8 @@ def update_row(table_id: int, row_id: int, new_data: RowDataRequest, db: Session
         return RowDataResponse(id=row_id, data=new_data.data, created_at=datetime.datetime.utcnow().isoformat())
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=400, detail="Ошибка при обновлении строки.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка при обновлении строки: {e}")
 
 
 @router.delete("/{table_id}/rows/{row_id}", status_code=204)
@@ -133,8 +133,8 @@ def delete_row(table_id: int, row_id: int, db: Session = Depends(get_db)):
         return {"detail": "Строка успешно удалена"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Ошибка при удалении строки.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при удалении строки: {e}")
 
 
 @router.post("/{table_id}/import")
@@ -150,6 +150,11 @@ async def import_excel(table_id: int, file: UploadFile = File(...), db: Session 
     try:
         content = await file.read()
         df = pd.read_excel(BytesIO(content))
+        # Приводим имена столбцов к строкам (важно для числовых заголовков '1','2','3','4')
+        try:
+            df.columns = [str(c).strip() for c in df.columns]
+        except Exception:
+            pass
 
         # Получаем список допустимых столбцов из схемы
         columns = db_table_meta.columns_json
@@ -162,6 +167,7 @@ async def import_excel(table_id: int, file: UploadFile = File(...), db: Session 
         for _, r in df.iterrows():
             data = {}
             for col in allowed_cols:
+                # В pandas заголовки могли быть числами; после преобразования — строки
                 value = r.get(col, None)
                 # Обработка NaN
                 try:

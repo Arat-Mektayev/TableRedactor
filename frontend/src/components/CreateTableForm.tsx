@@ -45,17 +45,17 @@ const CreateTableForm: React.FC<Props> = ({ onCreated }) => {
 
   const validateForm = (): boolean => {
     if (!name.trim()) {
-      setError("Table name is required");
+      setError("Название таблицы обязательно");
       return false;
     }
-    
+
     if (!columns.every(col => col.name.trim())) {
-      setError("All columns must have names");
+      setError("У всех столбцов должны быть названия");
       return false;
     }
 
     if (new Set(columns.map(col => col.name)).size !== columns.length) {
-      setError("Column names must be unique");
+      setError("Названия столбцов должны быть уникальными");
       return false;
     }
 
@@ -79,17 +79,17 @@ const CreateTableForm: React.FC<Props> = ({ onCreated }) => {
         }))
       });
       toast({
-        title: "Table created successfully",
+        title: "Таблица успешно создана",
         status: "success",
         duration: 3000,
         isClosable: true,
       });
       onCreated(table.id);
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.detail || err.message || "Network error";
+      const errorMessage = err?.response?.data?.detail || err.message || "Сетевая ошибка";
       setError(errorMessage);
       toast({
-        title: "Error creating table",
+        title: "Ошибка создания таблицы",
         description: errorMessage,
         status: "error",
         duration: 5000,
@@ -101,18 +101,18 @@ const CreateTableForm: React.FC<Props> = ({ onCreated }) => {
   };
 
   return (
-    <Box borderWidth="1px" p={6} borderRadius="lg" shadow="md" w="full" maxW="800px" m="auto">
+    <Box borderWidth="1px" p={6} borderRadius="lg" shadow="md" w="full" maxW="900px" m="auto">
       <form onSubmit={handleSubmit}>
         <VStack spacing={4} align="stretch">
           <FormControl isInvalid={!!error && !name}>
-            <FormLabel>Table Name</FormLabel>
+            <FormLabel>Название таблицы</FormLabel>
             <Input
-              placeholder="Enter table name"
+              placeholder="Введите название таблицы"
               value={name}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
               isDisabled={isSubmitting}
             />
-            <FormErrorMessage>Table name is required</FormErrorMessage>
+            <FormErrorMessage>Название таблицы обязательно</FormErrorMessage>
           </FormControl>
 
           <VStack spacing={4} align="stretch">
@@ -120,7 +120,7 @@ const CreateTableForm: React.FC<Props> = ({ onCreated }) => {
               <Box key={i} display="flex" gap={3} alignItems="center">
                 <FormControl isInvalid={!!error && !col.name}>
                   <Input
-                    placeholder="Column name"
+                    placeholder="Название столбца"
                     value={col.name}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       updateColumn(i, "name", e.target.value)
@@ -137,15 +137,15 @@ const CreateTableForm: React.FC<Props> = ({ onCreated }) => {
                   w="150px"
                   isDisabled={isSubmitting}
                 >
-                  <option value="text">Text</option>
-                  <option value="number">Number</option>
-                  <option value="timestamp">Date/Time</option>
-                  <option value="select">List</option>
+                  <option value="text">Текст</option>
+                  <option value="number">Число</option>
+                  <option value="timestamp">Дата/Время</option>
+                  <option value="select">Список</option>
                 </Select>
 
                 {col.type === 'select' && (
                   <Input
-                    placeholder="Comma-separated options"
+                    placeholder="Варианты через запятую"
                     value={(col.options || []).join(", ")}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       updateColumn(i, "options", e.target.value.split(",").map(s => s.trim()).filter(Boolean))
@@ -179,17 +179,35 @@ const CreateTableForm: React.FC<Props> = ({ onCreated }) => {
             leftIcon={<>+</>}
             isDisabled={isSubmitting}
           >
-            Add Column
+            Добавить столбец
           </Button>
 
           <Button
             type="submit"
             colorScheme="green"
             isLoading={isSubmitting}
-            loadingText="Creating..."
+            loadingText="Создание..."
           >
-            Create Table
+            Создать таблицу
           </Button>
+
+          {/* Live preview */}
+          <Box mt={6} borderTopWidth="1px" pt={4}>
+            <Box fontWeight="bold" mb={2}>Предпросмотр</Box>
+            <Box>
+              <Box fontSize="lg">{name || "<без названия>"}</Box>
+              {columns.length > 0 && (
+                <VStack align="stretch" spacing={2} mt={2}>
+                  {columns.map((c, i) => (
+                    <Box key={`${c.name}-${i}`} fontSize="sm" color="gray.700">
+                      • {c.name || "<без названия>"} — {c.type}{c.is_required ? " (обязательное)" : ""}
+                      {c.type === 'select' && (c.options?.length ? ` [${c.options.join(', ')}]` : " [без вариантов]")}
+                    </Box>
+                  ))}
+                </VStack>
+              )}
+            </Box>
+          </Box>
         </VStack>
       </form>
     </Box>

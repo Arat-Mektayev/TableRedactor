@@ -50,9 +50,10 @@ const TableView: React.FC<Props> = ({ tableId }) => {
       setColumns(cols);
       setRows(data.rows);
     } catch (error: any) {
+      const detail = error?.response?.data?.detail || error.message;
       toast({
-        title: "Error loading data",
-        description: error.message,
+        title: "Ошибка загрузки данных",
+        description: detail,
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -67,15 +68,16 @@ const TableView: React.FC<Props> = ({ tableId }) => {
       await addRow(tableId, row);
       await loadData();
       toast({
-        title: "Row added successfully",
+        title: "Строка добавлена",
         status: "success",
         duration: 3000,
         isClosable: true,
       });
     } catch (error: any) {
+      const detail = error?.response?.data?.detail || error.message;
       toast({
-        title: "Error adding row",
-        description: error.message,
+        title: "Ошибка добавления строки",
+        description: detail,
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -91,9 +93,10 @@ const TableView: React.FC<Props> = ({ tableId }) => {
     try {
       await deleteRow(tableId, rowId);
       await loadData();
-      toast({ title: "Row deleted", status: "success", duration: 2000 });
+      toast({ title: "Строка удалена", status: "success", duration: 2000 });
     } catch (error: any) {
-      toast({ title: "Error deleting row", description: error.message, status: "error", duration: 5000 });
+      const detail = error?.response?.data?.detail || error.message;
+      toast({ title: "Ошибка удаления строки", description: detail, status: "error", duration: 5000 });
     }
   };
 
@@ -101,11 +104,13 @@ const TableView: React.FC<Props> = ({ tableId }) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      await importExcel(tableId, file);
+      const res = await importExcel(tableId, file);
       await loadData();
-      toast({ title: "Imported successfully", status: "success", duration: 3000 });
+      const count = Array.isArray(res?.rows) ? res.rows.length : 0;
+      toast({ title: `Импорт завершён (${count} строк)`, status: count > 0 ? "success" : "warning", duration: 4000, isClosable: true });
     } catch (error: any) {
-      toast({ title: "Import error", description: error.message, status: "error", duration: 5000 });
+      const detail = error?.response?.data?.detail || error.message;
+      toast({ title: "Ошибка импорта", description: detail, status: "error", duration: 5000 });
     } finally {
       e.target.value = "";
     }
@@ -113,34 +118,28 @@ const TableView: React.FC<Props> = ({ tableId }) => {
 
   const handleExport = async () => {
     try {
-      const data = await getTableData(tableId);
-      const rowsForExport = data.rows.map((r: any) => ({ 
-        id: r.id, 
-        ...r.data, 
-        created_at: r.created_at 
-      }));
-      const ws = XLSX.utils.json_to_sheet(rowsForExport);
+      // Экспортируем то, что видим в таблице (с учётом фильтров/сортировки)
+      const header = [
+        'id',
+        ...columns.map(c => c.name),
+        'created_at',
+      ];
+      const dataRows = filteredAndSortedRows.map((r: any) => [
+        r.id,
+        ...columns.map(c => r.data?.[c.name] ?? ''),
+        r.created_at,
+      ]);
+
+      const aoa = [header, ...dataRows];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-      const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-      saveAs(
-        new Blob([buf], { type: "application/octet-stream" }), 
-        `table_${tableId}.xlsx`
-      );
-      toast({
-        title: "Table exported successfully",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+      const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      saveAs(new Blob([buf], { type: 'application/octet-stream' }), `table_${tableId}.xlsx`);
+      toast({ title: 'Таблица успешно экспортирована', status: 'success', duration: 3000, isClosable: true });
     } catch (error: any) {
-      toast({
-        title: "Error exporting table",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      const detail = error?.response?.data?.detail || error.message;
+      toast({ title: 'Ошибка экспорта таблицы', description: detail, status: 'error', duration: 5000, isClosable: true });
     }
   };
 
@@ -201,7 +200,7 @@ const TableView: React.FC<Props> = ({ tableId }) => {
             onClick={handleExport}
             isLoading={isLoading}
           >
-            Export to Excel
+            Экспорт в Excel
           </Button>
           <Input type="file" accept=".xlsx,.xls" onChange={handleImport} width="auto" />
         </HStack>
@@ -225,7 +224,7 @@ const TableView: React.FC<Props> = ({ tableId }) => {
                     </HStack>
                     <Input
                       size="sm"
-                      placeholder="Filter..."
+                      placeholder="Фильтр..."
                       value={filters[column.name] || ''}
                       onChange={(e) => handleFilter(column.name, e.target.value)}
                     />
@@ -234,7 +233,7 @@ const TableView: React.FC<Props> = ({ tableId }) => {
               ))}
             </Tr>
             <Tr>
-              <Th>Actions</Th>
+              <Th>Действия</Th>
             </Tr>
           </Thead>
           <Tbody>
@@ -244,7 +243,7 @@ const TableView: React.FC<Props> = ({ tableId }) => {
                   <Td key={column.name}>{row.data[column.name]}</Td>
                 ))}
                 <Td>
-                  <Button size="sm" colorScheme="red" onClick={() => handleDeleteRow(row.id)}>Delete</Button>
+                  <Button size="sm" colorScheme="red" onClick={() => handleDeleteRow(row.id)}>Удалить</Button>
                 </Td>
               </Tr>
             ))}

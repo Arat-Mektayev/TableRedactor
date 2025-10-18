@@ -1,19 +1,43 @@
-import React, { useState } from "react";
-import { ChakraProvider, Box, Heading } from "@chakra-ui/react";
+import React, { useEffect, useState } from "react";
+import { ChakraProvider, Box, Heading, SimpleGrid, Button } from "@chakra-ui/react";
 import CreateTableForm from "./components/CreateTableForm";
 import TableView from "./components/TableView";
+import TableList from "./components/TableList";
+import { getTables, Table } from "./api";
 
 const App: React.FC = () => {
   const [tableId, setTableId] = useState<number | null>(null);
+  const [tables, setTables] = useState<Table[]>([]);
+
+  const loadTables = async () => {
+    try {
+      const list = await getTables();
+      setTables(list);
+    } catch (e) {
+      // ignore for initial load
+    }
+  };
+
+  useEffect(() => {
+    if (tableId === null) {
+      loadTables();
+    }
+  }, [tableId]);
 
   return (
     <ChakraProvider>
       <Box p={4}>
         <Heading mb={4}>Динамические Таблицы</Heading>
         {!tableId ? (
-          <CreateTableForm onCreated={(id) => setTableId(id)} />
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+            <CreateTableForm onCreated={(id) => setTableId(id)} />
+            <TableList tables={tables} onSelect={(t) => setTableId(t.id)} />
+          </SimpleGrid>
         ) : (
-          <TableView tableId={tableId} />
+          <Box>
+            <Button mb={4} onClick={() => setTableId(null)}>← Назад</Button>
+            <TableView tableId={tableId} />
+          </Box>
         )}
       </Box>
     </ChakraProvider>

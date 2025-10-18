@@ -50,14 +50,15 @@ const RowForm: React.FC<Props> = ({ columns, onSubmit }) => {
       );
       setRowData(initialData);
       toast({
-        title: "Row added successfully",
+        title: "Строка успешно добавлена",
         status: "success",
         duration: 2000,
       });
     } catch (error: any) {
+      const detail = error?.response?.data?.detail || error.message;
       toast({
-        title: "Error adding row",
-        description: error.message,
+        title: "Ошибка добавления строки",
+        description: detail,
         status: "error",
         duration: 5000,
       });
@@ -91,7 +92,7 @@ const RowForm: React.FC<Props> = ({ columns, onSubmit }) => {
             value={rowData[column.name] || ''}
             onChange={(e) => handleChange(column, e.target.value)}
           >
-            <option value="">Select...</option>
+            <option value="">Выберите...</option>
             {(column.options || []).map((opt) => (
               <option key={opt} value={opt}>{opt}</option>
             ))}
@@ -121,10 +122,10 @@ const RowForm: React.FC<Props> = ({ columns, onSubmit }) => {
           type="submit"
           colorScheme="blue"
           isLoading={isSubmitting}
-          loadingText="Adding..."
+          loadingText="Добавление..."
           width="full"
         >
-          Add Row
+          Добавить строку
         </Button>
       </VStack>
     </Box>
