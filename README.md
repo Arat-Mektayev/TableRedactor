@@ -56,6 +56,4 @@ docker-compose.yml — поднимает db, backend и frontend
 
 Backend: Python, FastAPI, SQLAlchemy, PostgreSQL
 Frontend: React, TypeScript
-Docker: для контейнеризации и оркестрации сервисов
-```
-
+Docker: для контейнеризации и оркестрации сервисов`
