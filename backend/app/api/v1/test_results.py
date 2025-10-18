@@ -69,7 +69,7 @@ def create_row(table_id: int, row_data: RowDataRequest, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Таблица не найдена")
 
     try:
-        new_row = crud_table.create_row_data(db, db_table_meta.name, row_data.data)
+        new_row = crud_table.create_row_data(db, db_table_meta.table_db_name, row_data.data)
         return new_row
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -87,7 +87,7 @@ def get_table_data(table_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Таблица не найдена")
 
     try:
-        table_rows = crud_table.read_rows_data(db, db_table_meta.name)
+        table_rows = crud_table.read_rows_data(db, db_table_meta.table_db_name)
     except ValueError as e:
         # Ошибка, если физическая таблица не существует
         raise HTTPException(status_code=404, detail=str(e))
@@ -110,7 +110,7 @@ def update_row(table_id: int, row_id: int, new_data: RowDataRequest, db: Session
         raise HTTPException(status_code=404, detail="Таблица не найдена")
 
     try:
-        updated_row = crud_table.update_row_data(db, db_table_meta.name, row_id, new_data.data)
+        updated_row = crud_table.update_row_data(db, db_table_meta.table_db_name, row_id, new_data.data)
         # В реальном приложении: вернуть полную обновленную строку
         return RowDataResponse(id=row_id, data=new_data.data, created_at=datetime.datetime.utcnow().isoformat())
     except ValueError as e:
@@ -129,7 +129,7 @@ def delete_row(table_id: int, row_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Таблица не найдена")
 
     try:
-        crud_table.delete_row_data(db, db_table_meta.name, row_id)
+        crud_table.delete_row_data(db, db_table_meta.table_db_name, row_id)
         return {"detail": "Строка успешно удалена"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -179,7 +179,7 @@ async def import_excel(table_id: int, file: UploadFile = File(...), db: Session 
                 data[col] = value
 
             try:
-                new_row = crud_table.create_row_data(db, db_table_meta.name, data)
+                new_row = crud_table.create_row_data(db, db_table_meta.table_db_name, data)
                 inserted_rows.append(new_row)
             except ValueError:
                 # Пропускаем строки, не подходящие под ограничения

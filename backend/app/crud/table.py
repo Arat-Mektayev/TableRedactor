@@ -109,9 +109,9 @@ def create_row_data(db: Session, table_name: str, row_data: Dict[str, Any]) -> D
         raise ValueError("Ошибка целостности данных (возможно, нарушено ограничение NOT NULL).")
 
 
-def read_rows_data(db: Session, table_name: str) -> List[Dict[str, Any]]:
+def read_rows_data(db: Session, table_db_name: str) -> List[Dict[str, Any]]:
     """Получает все строки данных из динамической таблицы."""
-    dynamic_table = get_dynamic_table_object(db, table_name)
+    dynamic_table = get_dynamic_table_object(db, table_db_name)
 
     stmt = select(dynamic_table)
     result = db.execute(stmt).fetchall()
@@ -129,9 +129,9 @@ def read_rows_data(db: Session, table_name: str) -> List[Dict[str, Any]]:
     return rows_as_dicts
 
 
-def update_row_data(db: Session, table_name: str, row_id: int, new_data: Dict[str, Any]) -> Dict[str, Any]:
+def update_row_data(db: Session, table_db_name: str, row_id: int, new_data: Dict[str, Any]) -> Dict[str, Any]:
     """Обновляет строку в динамической таблице."""
-    dynamic_table = get_dynamic_table_object(db, table_name)
+    dynamic_table = get_dynamic_table_object(db, table_db_name)
 
     stmt = update(dynamic_table).where(dynamic_table.c.id == row_id).values(**new_data)
 
@@ -153,9 +153,9 @@ def update_row_data(db: Session, table_name: str, row_id: int, new_data: Dict[st
         raise ValueError("Ошибка целостности данных при обновлении.")
 
 
-def delete_row_data(db: Session, table_name: str, row_id: int) -> int:
+def delete_row_data(db: Session, table_db_name: str, row_id: int) -> int:
     """Удаляет строку из динамической таблицы."""
-    dynamic_table = get_dynamic_table_object(db, table_name)
+    dynamic_table = get_dynamic_table_object(db, table_db_name)
 
     stmt = delete(dynamic_table).where(dynamic_table.c.id == row_id)
 

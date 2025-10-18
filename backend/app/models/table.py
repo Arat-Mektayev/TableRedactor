@@ -8,4 +8,4 @@ class TableModel(Base):
     name = Column(String, unique=True, index=True, nullable=False)
     description = Column(String)
     columns_json = Column(JSON, nullable=False)
-    table_db_name = Column(String, nullable=False)  # ← новое поле
+    table_db_name = Column(String, nullable=False)
