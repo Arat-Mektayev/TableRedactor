@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import Table, Column, MetaData, Text, Integer, Float, DateTime, String, select, insert, update, delete
 from sqlalchemy.exc import NoSuchTableError, IntegrityError, SQLAlchemyError
-from app.models.table import Table as TableModel
+from app.models.table import TableModel
 from app.schemas.table import TableCreate, ColumnSchema, RowDataRequest
 import json
 import datetime
@@ -16,62 +16,63 @@ TYPE_MAP = {
 }
 
 
-def get_dynamic_table_object(db: Session, table_name: str) -> Table:
-    """Вспомогательная функция: динамически отражает (reflect) таблицу из БД."""
-    metadata = MetaData(bind=db.bind)
-    dynamic_table_name = f"data_{table_name.lower()}"
-
+def get_dynamic_table_object(db: Session, table_db_name: str) -> Table:
+    metadata = MetaData()
     try:
-        # Отражаем структуру таблицы, которая уже существует в БД
-        dynamic_table = Table(dynamic_table_name, metadata, autoload_with=db.bind)
+        dynamic_table = Table(table_db_name, metadata, autoload_with=db.bind)
         return dynamic_table
-    except NoSuchTableError:
-        raise ValueError(f"Физическая таблица {dynamic_table_name} не найдена в БД.")
+    except Exception as e:
+        raise ValueError(f"Физическая таблица {table_db_name} не найдена в БД: {e}")
 
 
 def create_table_model(db: Session, table_data: TableCreate):
-    """
-    Создает метаданные таблицы (TableModel) и саму физическую таблицу в БД.
-    """
+    """Создает метаданные таблицы (TableModel) и саму физическую таблицу в БД."""
+    
+    # Генерируем имя физической таблицы, например: dynamic_table_123
+    table_db_name = f"dynamic_table_{int(datetime.datetime.now().timestamp())}_{db.query(TableModel).count() + 1}"
 
-    # 1. Сохранение метаданных схемы
+    # 1. Создаём метаданные
     db_table_meta = TableModel(
         name=table_data.name,
         description=table_data.description,
-        columns_json=[col.model_dump() for col in table_data.columns]
+        columns_json=[col.model_dump() for col in table_data.columns],
+        table_db_name=table_db_name  # ← важно: поле должно быть в модели!
     )
     db.add(db_table_meta)
+    db.commit()
+    db.refresh(db_table_meta)
 
-    # 2. Динамическое создание физической таблицы в PostgreSQL
+    # 2. Строим структуру таблицы через SQLAlchemy
     metadata = MetaData()
-
-    columns_list = [
-        Column('id', Integer, primary_key=True, index=True),
-        Column('created_at', DateTime, default=datetime.datetime.utcnow, nullable=False)
+    columns = [
+        Column("id", Integer, primary_key=True, autoincrement=True),
+        Column("created_at", DateTime, default=datetime.datetime.utcnow),
     ]
 
-    # Добавление пользовательских столбцов
+    type_map = {
+        "text": Text,
+        "number": Float,
+        "timestamp": DateTime,
+        "select": String(255)
+    }
+
     for col in table_data.columns:
-        sqlalchemy_type = TYPE_MAP.get(col.type)
-        if sqlalchemy_type is None:
-            raise ValueError(f"Неизвестный тип столбца: {col.type}")
+        col_type = type_map.get(col.type)
+        if not col_type:
+            raise ValueError(f"Неподдерживаемый тип столбца: {col.type}")
 
-        columns_list.append(Column(col.name, sqlalchemy_type, nullable=not col.is_required))
+        nullable = not col.is_required if col.is_required is not None else True
+        columns.append(Column(col.name, col_type, nullable=nullable))
 
-    dynamic_table = Table(
-        f"data_{table_data.name.lower()}",  # Имя таблицы в БД
-        metadata,
-        *columns_list
-    )
-
+    # 3. Создаём таблицу в БД
+    dynamic_table = Table(table_db_name, metadata, *columns)
     try:
-        metadata.create_all(db.bind)
-        db.commit()
-        db.refresh(db_table_meta)
-        return db_table_meta
-    except SQLAlchemyError as e:
+        dynamic_table.create(bind=db.bind)
+    except Exception as e:
         db.rollback()
-        raise ValueError(f"Ошибка БД при создании таблицы: {e}")
+        raise ValueError(f"Не удалось создать таблицу в БД: {e}")
+
+    return db_table_meta
 
 
 def get_table_metadata(db: Session, table_id: int):

@@ -1,21 +1,22 @@
 FROM node:20-alpine
-
 WORKDIR /app
 
-# Install serve for production static file serving
+# Установка serve для раздачи статики
 RUN npm install -g serve
 
-# Copy package files and install dependencies
+# Копируем package.json и package-lock.json
 COPY package*.json ./
-RUN npm install --production --legacy-peer-deps
 
-# Copy source code
+# Устанавливаем все зависимости, включая devDependencies
+RUN npm install --legacy-peer-deps
+
+# Копируем исходный код
 COPY . .
 
-# Build frontend
+# Сборка проекта
 RUN npm run build
 
 EXPOSE 3000
 
-# Serve static files
+# Запуск сервера для раздачи статики
 CMD ["serve", "-s", "build", "-l", "3000"]
