@@ -1,3 +1,5 @@
+// frontend/src/App.tsx
+
 import React, { useEffect, useState } from "react";
 import { ChakraProvider, Box, Heading, SimpleGrid, Button } from "@chakra-ui/react";
 import CreateTableForm from "./components/CreateTableForm";
@@ -24,6 +26,9 @@ const App: React.FC = () => {
     }
   }, [tableId]);
 
+  // Найдём выбранную таблицу по ID
+  const selectedTable = tableId ? tables.find(t => t.id === tableId) || null : null;
+
   return (
     <ChakraProvider>
       <Box p={4}>
@@ -36,7 +41,12 @@ const App: React.FC = () => {
         ) : (
           <Box>
             <Button mb={4} onClick={() => setTableId(null)}>← Назад</Button>
-            <TableView tableId={tableId} />
+            {/* Передаём selectedTable вместо tableId */}
+            {selectedTable ? (
+              <TableView selectedTable={selectedTable} />
+            ) : (
+              <Box>Таблица не найдена</Box>
+            )}
           </Box>
         )}
       </Box>
